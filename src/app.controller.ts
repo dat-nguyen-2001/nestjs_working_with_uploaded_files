@@ -18,14 +18,15 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
 
 @Controller()
-@ApiTags('files')
+@ApiTags('WorkingWithFiles')
 export class AppController {
   constructor(private readonly appService: AppService) {}
-  @Post('merge-by-id')
+  @Post('merge-files')
   @ApiOperation({
     operationId: 'mergeTwoFilesById',
     summary: 'Merge 2 json files with transaction data',
-    description: 'Transactions with the same id will be merged into one',
+    description:
+      'Merge transaction data with membership data using userId as the reference field',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -35,7 +36,6 @@ export class AppController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Upload multiple files',
-    type: 'multipart/form-data',
     schema: {
       type: 'object',
       properties: {
@@ -54,25 +54,19 @@ export class AppController {
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Res() res: Response,
   ) {
-    const [firstFile, secondFile] = files;
-    const transactionDataOne = JSON.parse(firstFile.buffer.toString());
-    const transactionDataTwo = JSON.parse(secondFile.buffer.toString());
+    const [transactionsFile, membershipFile] = files;
+    const transactions = JSON.parse(transactionsFile.buffer.toString());
+    const memberships = JSON.parse(membershipFile.buffer.toString());
     try {
       const result = await this.appService.mergeTwoFiles(
-        transactionDataOne,
-        transactionDataTwo,
-        'id',
+        transactions,
+        memberships,
       );
-      return res.download(
-        result,
-        "Merged transactions",
-        null,
-        async (err) => {
-          if (err) {
-            throw new Error(`Merge two files failed with error ${err}`);
-          }
-        },
-      );
+      return res.download(result, 'Merged transactions', null, async (err) => {
+        if (err) {
+          throw new Error(`Merge two files failed with error ${err}`);
+        }
+      });
     } catch (error) {
       return res
         .status(HttpStatus.INTERNAL_SERVER_ERROR)
